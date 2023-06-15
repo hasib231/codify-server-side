@@ -49,6 +49,9 @@ async function run() {
 
     const usersCollection = client.db("sportsDb").collection("users");
     const classCollection = client.db("sportsDb").collection("classes");
+    const selectedClassesCollection = client
+      .db("sportsDb")
+      .collection("selectedClasses");
 
     app.post("/jwt", (req, res) => {
       const user = req.body;
@@ -158,9 +161,21 @@ async function run() {
       res.send(result);
     });
 
+    app.post("/selectedClass", async (req, res) => {
+      const item = req.body;
+      const result = await selectedClassesCollection.insertOne(item);
+      res.send(result);
+    });
+
     // class related apis
     app.get("/class", verifyJWT, async (req, res) => {
       const result = await classCollection.find().toArray();
+      res.send(result);
+    });
+
+    app.get("/class/allApprove", verifyJWT, async (req, res) => {
+      const query = { status: "approved" };
+      const result = await classCollection.find(query).toArray();
       res.send(result);
     });
 
