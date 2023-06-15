@@ -159,9 +159,40 @@ async function run() {
     });
 
     // class related apis
+    app.get("/class", verifyJWT, async (req, res) => {
+      const result = await classCollection.find().toArray();
+      res.send(result);
+    });
+
     app.post("/class", verifyJWT, async (req, res) => {
       const newClass = req.body;
       const result = await classCollection.insertOne(newClass);
+      res.send(result);
+    });
+
+    app.patch("/class/approve/:id", async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) };
+      const updateDoc = {
+        $set: {
+          status: "approved",
+        },
+      };
+
+      const result = await classCollection.updateOne(filter, updateDoc);
+      res.send(result);
+    });
+
+    app.patch("/class/deny/:id", async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) };
+      const updateDoc = {
+        $set: {
+          status: "denied",
+        },
+      };
+
+      const result = await classCollection.updateOne(filter, updateDoc);
       res.send(result);
     });
 
