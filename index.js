@@ -145,6 +145,19 @@ async function run() {
       res.send(result);
     });
 
+    // student apis
+    app.get("/users/student/:email", verifyJWT, async (req, res) => {
+      const email = req.params.email;
+
+      if (req.decoded.email !== email) {
+        res.send({ student: false });
+      }
+
+      const query = { email: email };
+      const user = await usersCollection.findOne(query);
+      const result = { student: user?.role === "student" };
+      res.send(result);
+    });
 
 
     // Send a ping to confirm a successful connection
