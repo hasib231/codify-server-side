@@ -48,6 +48,7 @@ async function run() {
     await client.connect();
 
     const usersCollection = client.db("sportsDb").collection("users");
+    const classCollection = client.db("sportsDb").collection("classes");
 
     app.post("/jwt", (req, res) => {
       const user = req.body;
@@ -105,7 +106,6 @@ async function run() {
 
     app.patch("/users/admin/:id", async (req, res) => {
       const id = req.params.id;
-      console.log(id);
       const filter = { _id: new ObjectId(id) };
       const updateDoc = {
         $set: {
@@ -133,7 +133,6 @@ async function run() {
 
     app.patch("/users/instructor/:id", async (req, res) => {
       const id = req.params.id;
-      console.log(id);
       const filter = { _id: new ObjectId(id) };
       const updateDoc = {
         $set: {
@@ -156,6 +155,13 @@ async function run() {
       const query = { email: email };
       const user = await usersCollection.findOne(query);
       const result = { student: user?.role === "student" };
+      res.send(result);
+    });
+
+    // class related apis
+    app.post("/class", verifyJWT, async (req, res) => {
+      const newClass = req.body;
+      const result = await classCollection.insertOne(newClass);
       res.send(result);
     });
 
