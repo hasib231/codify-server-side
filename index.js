@@ -125,7 +125,7 @@ async function run() {
     // instructor apis
     app.get("/allInstructors", async (req, res) => {
       const query = { role: "instructor" };
-      const result = await usersCollection.find(query).toArray();
+      const result = await usersCollection.find(query).limit(6).toArray();
       res.send(result);
     });
 
@@ -295,6 +295,16 @@ async function run() {
     app.get("/class/allApprove", async (req, res) => {
       const query = { status: "approved" };
       const result = await classCollection.find(query).toArray();
+      res.send(result);
+    });
+
+    app.get("/class/popularClass", async (req, res) => {
+      const query = { status: "approved" };
+      const result = await classCollection
+        .find(query)
+        .sort({ totalEnrolledStudents: -1 })
+        .limit(6)
+        .toArray();
       res.send(result);
     });
 
