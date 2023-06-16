@@ -123,6 +123,12 @@ async function run() {
     });
 
     // instructor apis
+    app.get("/allInstructors", async (req, res) => {
+      const query = { role: "instructor" };
+      const result = await usersCollection.find(query).toArray();
+      res.send(result);
+    });
+
     app.get("/users/instructor/:email", verifyJWT, async (req, res) => {
       const email = req.params.email;
 
@@ -146,6 +152,27 @@ async function run() {
       };
 
       const result = await usersCollection.updateOne(filter, updateDoc);
+      res.send(result);
+    });
+
+    app.get("/instructorClass", verifyJWT, async (req, res) => {
+      const email = req.query.email;
+
+      if (!email) {
+        res.send([]);
+      }
+
+      const decodedEmail = req.decoded.email;
+      if (email !== decodedEmail) {
+        return res
+          .status(403)
+          .send({ error: true, message: "forbidden access" });
+      }
+
+      const query = {
+        instructorEmail: email,
+      };
+      const result = await classCollection.find(query).toArray();
       res.send(result);
     });
 
@@ -188,6 +215,25 @@ async function run() {
       res.send(result);
     });
 
+    app.get("/myEnrolledClass", verifyJWT, async (req, res) => {
+      const email = req.query.email;
+
+      if (!email) {
+        res.send([]);
+      }
+
+      const decodedEmail = req.decoded.email;
+      if (email !== decodedEmail) {
+        return res
+          .status(403)
+          .send({ error: true, message: "forbidden access" });
+      }
+
+      const query = { email: email };
+      const result = await paymentCollection.find(query).sort({date: -1}).toArray();
+      res.send(result);
+    });
+
     app.get("/mySelectClass/:id", async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
@@ -196,21 +242,6 @@ async function run() {
       res.send(result);
     });
 
-    // app.patch("/class/enrollClass/:id", async (req, res) => {
-    //   const id = req.params.id;
-    //   const filter = { _id: new ObjectId(id) };
-    //   const updateDoc = {
-    //     $set: {
-    //       enrollStatus: "enrolled",
-    //     },
-    //   };
-
-    //   const result = await selectedClassesCollection.updateOne(
-    //     filter,
-    //     updateDoc
-    //   );
-    //   res.send(result);
-    // });
 
     app.delete("/myClass/:id", async (req, res) => {
       const id = req.params.id;
@@ -242,6 +273,16 @@ async function run() {
       const query = { _id: new ObjectId(id) };
       const deleteResult = await selectedClassesCollection.deleteOne(query);
 
+      const courseId = PaymentClass.courseId;
+      const filter = { _id: new ObjectId(courseId) };
+      const updateDoc = {
+        $inc: {
+          availableSeats: -1,
+          totalEnrolledStudents: +1,
+        },
+      };
+      await classCollection.updateOne(filter, updateDoc);
+
       res.send({ insertResult, deleteResult });
     });
 
@@ -251,7 +292,7 @@ async function run() {
       res.send(result);
     });
 
-    app.get("/class/allApprove", verifyJWT, async (req, res) => {
+    app.get("/class/allApprove", async (req, res) => {
       const query = { status: "approved" };
       const result = await classCollection.find(query).toArray();
       res.send(result);
