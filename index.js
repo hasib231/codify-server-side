@@ -3,6 +3,7 @@ const app = express();
 const cors = require("cors");
 const jwt = require("jsonwebtoken");
 require("dotenv").config();
+const stripe = require("stripe")(process.env.PAYMENT_SECRET_KEY);
 const port = process.env.PORT || 5000;
 
 // middleware
@@ -49,6 +50,7 @@ async function run() {
 
     const usersCollection = client.db("sportsDb").collection("users");
     const classCollection = client.db("sportsDb").collection("classes");
+    const paymentCollection = client.db("sportsDb").collection("payments");
     const selectedClassesCollection = client
       .db("sportsDb")
       .collection("selectedClasses");
@@ -167,6 +169,82 @@ async function run() {
       res.send(result);
     });
 
+    app.get("/myClass", verifyJWT, async (req, res) => {
+      const email = req.query.email;
+
+      if (!email) {
+        res.send([]);
+      }
+
+      const decodedEmail = req.decoded.email;
+      if (email !== decodedEmail) {
+        return res
+          .status(403)
+          .send({ error: true, message: "forbidden access" });
+      }
+
+      const query = { email: email };
+      const result = await selectedClassesCollection.find(query).toArray();
+      res.send(result);
+    });
+
+    app.get("/mySelectClass/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+
+      const result = await selectedClassesCollection.findOne(query);
+      res.send(result);
+    });
+
+    // app.patch("/class/enrollClass/:id", async (req, res) => {
+    //   const id = req.params.id;
+    //   const filter = { _id: new ObjectId(id) };
+    //   const updateDoc = {
+    //     $set: {
+    //       enrollStatus: "enrolled",
+    //     },
+    //   };
+
+    //   const result = await selectedClassesCollection.updateOne(
+    //     filter,
+    //     updateDoc
+    //   );
+    //   res.send(result);
+    // });
+
+    app.delete("/myClass/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await selectedClassesCollection.deleteOne(query);
+      res.send(result);
+    });
+
+    // create payment intent
+    app.post("/create-payment-intent", verifyJWT, async (req, res) => {
+      const { price } = req.body;
+      const amount = parseInt(price * 100);
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: amount,
+        currency: "usd",
+        payment_method_types: ["card"],
+      });
+
+      res.send({
+        clientSecret: paymentIntent.client_secret,
+      });
+    });
+
+    // payment related api
+    app.post("/payments", verifyJWT, async (req, res) => {
+      const PaymentClass = req.body;
+      const id = PaymentClass.selectedCourseId;
+      const insertResult = await paymentCollection.insertOne(PaymentClass);
+      const query = { _id: new ObjectId(id) };
+      const deleteResult = await selectedClassesCollection.deleteOne(query);
+
+      res.send({ insertResult, deleteResult });
+    });
+
     // class related apis
     app.get("/class", verifyJWT, async (req, res) => {
       const result = await classCollection.find().toArray();
@@ -211,7 +289,6 @@ async function run() {
       res.send(result);
     });
 
-
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log(
@@ -231,5 +308,3 @@ app.get("/", (req, res) => {
 app.listen(port, () => {
   console.log(`sports club is sitting on port ${port}`);
 });
-
-
