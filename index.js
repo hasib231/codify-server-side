@@ -2,7 +2,12 @@ const express = require("express");
 const app = express();
 const cors = require("cors");
 const jwt = require("jsonwebtoken");
+const passport = require("passport");
+const mongoose = require("mongoose");
 require("dotenv").config();
+const MongoStore = require("connect-mongo");
+const session = require("express-session");
+require("./config/passport")(passport);
 const stripe = require("stripe")(process.env.PAYMENT_SECRET_KEY);
 const port = process.env.PORT || 5000;
 
@@ -43,6 +48,7 @@ const client = new MongoClient(uri, {
   },
 });
 
+
 async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
@@ -54,6 +60,66 @@ async function run() {
     const selectedClassesCollection = client
       .db("sportsDb")
       .collection("selectedClasses");
+    
+    // mongoose start
+    app.use(express.json());
+    app.use(
+      cors({
+        origin: "http://localhost:5173",
+        credentials: true,
+      })
+    );
+
+    app.use(
+      session({
+        secret: "some random secret",
+        resave: false,
+        saveUninitialized: false,
+        store: MongoStore.create({ mongoUrl: process.env.MONGO_URI }),
+      })
+    );
+
+    app.use(passport.initialize());
+    app.use(passport.session());
+
+    // mongoose.connect(
+    //   process.env.MONGO_URI,
+    //   {
+    //     useNewUrlParser: true,
+    //     useUnifiedTopology: true,
+    //   },
+    //   () => console.log("DB Connected")
+    // );
+
+    mongoose
+      .connect(
+        process.env.MONGO_URI,
+        {
+          useNewUrlParser: true,
+          useUnifiedTopology: true,
+        },
+      )
+      .then(() => {
+        console.log("connected to mongoose");
+      })
+      .catch((err) => {
+        console.log(err);
+      });
+
+    app.use("/api/code", require("./routes/code"));
+    app.use("/api/problem", require("./routes/problem"));
+    app.use("/api/auth", require("./routes/auth"));
+
+    app.get(
+      "/auth/google/callback",
+      passport.authenticate("google", {
+        failureRedirect: "/failed",
+      }),
+      (req, res) => {
+        // res.redirect("http://localhost:3000/");
+      }
+    );
+    // mongoose end
 
     app.post("/jwt", (req, res) => {
       const user = req.body;
@@ -351,6 +417,8 @@ async function run() {
   }
 }
 run().catch(console.dir);
+
+
 
 app.get("/", (req, res) => {
   res.send("sports club is sitting");
